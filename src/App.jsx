@@ -148,6 +148,34 @@ function App() {
     const [items, setter] = setters[type]
     setter(items.filter(item => item.id !== id)); setNotice('Record deleted.')
   }
+  const editRecord = (type, id) => {
+    const collections = { students: [students, setStudents], teachers: [teachers, setTeachers], classes: [classes, setClasses], subjects: [subjects, setSubjects], marks: [marks, setMarks], fees: [fees, setFees] }
+    const entry = collections[type]
+    if (!entry) return
+    const [items, setter] = entry
+    const current = items.find(item => item.id === id)
+    if (!current) return
+    const updated = { ...current }
+    for (const key of Object.keys(current).filter(key => key !== 'id')) {
+      const answer = window.prompt('Update ' + key + ' (leave unchanged by pressing Cancel)', String(current[key] ?? ''))
+      if (answer === null) continue
+      const value = answer.trim()
+      if (value === '') { setNotice('An empty value was not saved.'); return }
+      if (['score', 'outOf', 'amount'].includes(key)) {
+        const number = Number(value)
+        if (!Number.isFinite(number) || number < 0 || (key === 'outOf' && number <= 0) || (key === 'amount' && number <= 0)) {
+          setNotice('Enter a valid positive number for ' + key + '.'); return
+        }
+        if (key === 'score' && number > Number(updated.outOf || current.outOf)) {
+          setNotice('Score cannot be greater than the total possible marks.'); return
+        }
+        updated[key] = value
+      } else updated[key] = value
+    }
+    if (type === 'marks' && Number(updated.score) > Number(updated.outOf)) { setNotice('Score cannot exceed total possible marks.'); return }
+    setter(items.map(item => item.id === id ? updated : item))
+    setNotice('Record updated successfully.')
+  }
   const exportCsv = (rows, filename) => {
     if (!rows.length) { setNotice('There are no records to export yet.'); return }
     const keys = Object.keys(rows[0])
@@ -157,7 +185,7 @@ function App() {
   }
   const addButton = { Students: addStudent, Teachers: addTeacher, 'Classes & subjects': addClass, Subjects: addSubject, Marks: addMark, Fees: addFee }
   const addLabels = { Students: 'Add student', Teachers: 'Add teacher', 'Classes & subjects': 'Add class', Subjects: 'Add subject', Marks: 'Record marks', Fees: 'Record payment' }
-  const table = (headers, rows, type, empty) => <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left"><thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-400"><tr>{headers.map(h => <th key={h} className="px-5 py-3 font-semibold">{h}</th>)}<th className="px-5 py-3">Action</th></tr></thead><tbody>{rows.map(row => <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/60">{headers.map((h, i) => <td key={h} className="px-5 py-4 text-xs text-slate-600">{row._cells[i]}</td>)}<td className="px-5 py-4"><button aria-label="Delete record" onClick={() => removeRecord(type, row.id)} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={15}/></button></td></tr>)}</tbody></table>{rows.length === 0 && <p className="p-9 text-center text-sm text-slate-400">{empty}</p>}</div>
+  const table = (headers, rows, type, empty) => <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left"><thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-400"><tr>{headers.map(h => <th key={h} className="px-5 py-3 font-semibold">{h}</th>)}<th className="px-5 py-3">Action</th></tr></thead><tbody>{rows.map(row => <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/60">{headers.map((h, i) => <td key={h} className="px-5 py-4 text-xs text-slate-600">{row._cells[i]}</td>)}<td className="px-5 py-4"><div className="flex items-center gap-1"><button aria-label="Edit record" onClick={() => editRecord(type, row.id)} className="rounded-lg p-2 text-slate-400 hover:bg-amber-50 hover:text-amber-700"><Pencil size={15}/></button><button aria-label="Delete record" onClick={() => removeRecord(type, row.id)} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={15}/></button></div></td></tr>)}</tbody></table>{rows.length === 0 && <p className="p-9 text-center text-sm text-slate-400">{empty}</p>}</div>
   const makeRows = (items, cells) => items.map(item => ({ ...item, _cells: cells(item) }))
   const headerActions = <div className="flex flex-col gap-3 sm:flex-row"><div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5"><Search size={15} className="text-slate-400"/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search records..." className="w-full bg-transparent text-xs outline-none sm:w-44"/></div>{addButton[active] && <button onClick={addButton[active]} className="inline-flex items-center justify-center gap-2 rounded-xl bg-navy-950 px-4 py-2.5 text-xs font-semibold text-white"><Plus size={15}/>{addLabels[active]}</button>}</div>
   const pageTitle = { Students: 'Student directory', Teachers: 'Teaching staff', 'Classes & subjects': 'Classes & subjects', Subjects: 'Subject catalogue', Attendance: 'Daily attendance', Marks: 'Marks & assessments', 'Report cards': 'Academic report cards', Fees: 'Fees & payments', Reports: 'School reports' }
