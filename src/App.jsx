@@ -144,7 +144,7 @@ function App() {
   }
   const removeRecord = (type, id) => {
     if (!window.confirm('Delete this record? This cannot be undone on this device.')) return
-    const setters = { students: [students, setStudents], teachers: [teachers, setTeachers], classes: [classes, setClasses], marks: [marks, setMarks], fees: [fees, setFees] }
+    const setters = { students: [students, setStudents], teachers: [teachers, setTeachers], classes: [classes, setClasses], subjects: [subjects, setSubjects], marks: [marks, setMarks], fees: [fees, setFees] }
     const [items, setter] = setters[type]
     setter(items.filter(item => item.id !== id)); setNotice('Record deleted.')
   }
