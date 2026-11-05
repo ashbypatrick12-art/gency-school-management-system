@@ -122,10 +122,12 @@ function App() {
     const student = window.prompt('Student full name')
     if (!student?.trim()) return
     const subject = window.prompt('Subject') || 'Not specified'
+    const subject = window.prompt('Subject') || 'Not specified'
     const score = window.prompt('Score achieved (number)')
-    if (score === null || score.trim() === '' || !Number.isFinite(Number(score))) return
-    const outOf = window.prompt('Total possible marks', '100') || '100'
-    setMarks([...marks, { id: 'MRK-' + String(Date.now()).slice(-5), student: student.trim(), className: 'Not assigned', subject, assessment: 'Assessment', score, outOf, term: 'Term 1' }])
+    if (score === null || score.trim() === '' || !Number.isFinite(Number(score)) || Number(score) < 0) { setNotice('Enter a valid score of zero or more.'); return }
+    const outOf = window.prompt('Total possible marks', '100')
+    if (outOf === null || outOf.trim() === '' || !Number.isFinite(Number(outOf)) || Number(outOf) <= 0 || Number(score) > Number(outOf)) { setNotice('Total marks must be positive and the score cannot exceed it.'); return }
+    setMarks([...marks, { id: 'MRK-' + String(Date.now()).slice(-5), student: student.trim(), className: 'Not assigned', subject, assessment: 'Assessment', score: Number(score), outOf: Number(outOf), term: 'Term 1' }])
     setNotice('Assessment mark saved.')
   }
   const addFee = () => {
