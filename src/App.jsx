@@ -73,6 +73,8 @@ function App() {
   const [marks, setMarks] = useStoredState('marks', seed.marks)
   const [fees, setFees] = useStoredState('fees', seed.fees)
   const [notice, setNotice] = useState('')
+  const [recordForm, setRecordForm] = useState(null)
+  const [formValues, setFormValues] = useState({})
   const select = label => { setActive(label); setMobileOpen(false); setQuery(''); setNotice('') }
   const todayAttendance = attendance.filter(a => a.date === today)
   const presentCount = todayAttendance.filter(a => a.status === 'Present').length
@@ -83,60 +85,59 @@ function App() {
   const filteredSubjects = useMemo(() => subjects.filter(s => Object.values(s).join(' ').toLowerCase().includes(query.toLowerCase())), [subjects, query])
   const filteredFees = useMemo(() => fees.filter(s => Object.values(s).join(' ').toLowerCase().includes(query.toLowerCase())), [fees, query])
   const filteredMarks = useMemo(() => marks.filter(s => Object.values(s).join(' ').toLowerCase().includes(query.toLowerCase())), [marks, query])
-  const addStudent = () => {
-    const name = window.prompt('Student full name')
-    if (!name?.trim()) return
-    const className = window.prompt('Class (e.g. Senior 1)') || 'Not assigned'
-    const guardian = window.prompt('Parent / guardian name') || 'Not provided'
-    const phone = window.prompt('Guardian phone number') || ''
-    setStudents([...students, { id: 'STU-' + String(Date.now()).slice(-6), name: name.trim(), className, gender: 'Not specified', guardian, phone, status: 'Active' }])
-    setNotice('Student record added and saved on this device.')
+  const formFields = {
+    students: [{key:'name',label:'Student full name',required:true},{key:'className',label:'Class',required:true},{key:'guardian',label:'Parent / guardian'},{key:'phone',label:'Guardian phone'},{key:'gender',label:'Gender',type:'select',options:['Not specified','Female','Male']},{key:'status',label:'Status',type:'select',options:['Active','Pending','Inactive']}],
+    teachers: [{key:'name',label:'Teacher full name',required:true},{key:'subject',label:'Main subject'},{key:'phone',label:'Phone number'},{key:'email',label:'Email address',type:'email'},{key:'status',label:'Status',type:'select',options:['Active','Inactive']}],
+    classes: [{key:'name',label:'Class name',required:true},{key:'classTeacher',label:'Class teacher'},{key:'room',label:'Room / classroom'},{key:'students',label:'Student count',type:'number'}],
+    subjects: [{key:'name',label:'Subject name',required:true},{key:'code',label:'Subject code',required:true},{key:'level',label:'Level',type:'select',options:['O-Level','A-Level']},{key:'teacher',label:'Assigned teacher'}],
+    marks: [{key:'student',label:'Student full name',required:true},{key:'className',label:'Class'},{key:'subject',label:'Subject',required:true},{key:'assessment',label:'Assessment name',required:true},{key:'score',label:'Score achieved',type:'number',required:true},{key:'outOf',label:'Total possible marks',type:'number',required:true},{key:'term',label:'Term',type:'select',options:['Term 1','Term 2','Term 3']}],
+    fees: [{key:'student',label:'Student full name',required:true},{key:'className',label:'Class'},{key:'amount',label:'Amount received (UGX)',type:'number',required:true},{key:'method',label:'Payment method',type:'select',options:['Cash','Bank','Mobile money']},{key:'date',label:'Payment date',type:'date',required:true},{key:'reference',label:'Payment reference'}],
   }
-  const addTeacher = () => {
-    const name = window.prompt('Teacher full name')
-    if (!name?.trim()) return
-    const subject = window.prompt('Main subject taught') || 'Not assigned'
-    const phone = window.prompt('Phone number') || ''
-    const email = window.prompt('Email address') || ''
-    setTeachers([...teachers, { id: 'TCH-' + String(Date.now()).slice(-5), name: name.trim(), subject, phone, email, status: 'Active' }])
-    setNotice('Teacher record added.')
+  const openRecordForm = (type, id = null) => {
+    const collections = { students, teachers, classes, subjects, marks, fees }
+    const current = id ? collections[type].find(item => item.id === id) : null
+    const defaults = type === 'students' ? {gender:'Not specified',status:'Active'} : type === 'teachers' ? {status:'Active'} : type === 'subjects' ? {level:'O-Level',teacher:'Not assigned'} : type === 'marks' ? {className:'Not assigned',assessment:'Assessment',outOf:100,term:'Term 1'} : type === 'fees' ? {className:'Not assigned',method:'Cash',date:today,reference:'MANUAL'} : {classTeacher:'Not assigned',room:'Not assigned',students:0}
+    setFormValues({ ...defaults, ...(current || {}) })
+    setRecordForm({type,id})
   }
-  const addSubject = () => {
-    const name = window.prompt('Subject name')
-    if (!name?.trim()) return
-    const code = window.prompt('Subject code') || name.trim().slice(0,3).toUpperCase()
-    const level = window.prompt('Level (O-Level / A-Level)') || 'O-Level'
-    const teacher = window.prompt('Assigned teacher') || 'Not assigned'
-    setSubjects([...subjects, { id: 'SUB-' + String(Date.now()).slice(-5), name: name.trim(), code: code.trim().toUpperCase(), level, teacher }])
-    setNotice('Subject added.')
-  }
-  const addClass = () => {
-    const name = window.prompt('Class name (e.g. Senior 1)')
-    if (!name?.trim()) return
-    const classTeacher = window.prompt('Class teacher') || 'Not assigned'
-    const room = window.prompt('Room / classroom') || 'Not assigned'
-    setClasses([...classes, { id: 'CLS-' + String(Date.now()).slice(-5), name: name.trim(), classTeacher, room, students: '0' }])
-    setNotice('Class created.')
-  }
-  const addMark = () => {
-    const student = window.prompt('Student full name')
-    if (!student?.trim()) return
-    const subject = window.prompt('Subject') || 'Not specified'
-    const score = window.prompt('Score achieved (number)')
-    if (score === null || score.trim() === '' || !Number.isFinite(Number(score)) || Number(score) < 0) { setNotice('Enter a valid score of zero or more.'); return }
-    const outOf = window.prompt('Total possible marks', '100')
-    if (outOf === null || outOf.trim() === '' || !Number.isFinite(Number(outOf)) || Number(outOf) <= 0 || Number(score) > Number(outOf)) { setNotice('Total marks must be positive and the score cannot exceed it.'); return }
-    setMarks([...marks, { id: 'MRK-' + String(Date.now()).slice(-5), student: student.trim(), className: 'Not assigned', subject, assessment: 'Assessment', score: Number(score), outOf: Number(outOf), term: 'Term 1' }])
-    setNotice('Assessment mark saved.')
-  }
-  const addFee = () => {
-    const student = window.prompt('Student full name')
-    if (!student?.trim()) return
-    const amount = window.prompt('Amount received in UGX')
-    if (amount === null || amount.trim() === '' || !Number.isFinite(Number(amount)) || Number(amount) <= 0) return
-    const method = window.prompt('Payment method (Cash / Bank / Mobile money)') || 'Not specified'
-    setFees([...fees, { id: 'FEE-' + String(Date.now()).slice(-5), student: student.trim(), className: 'Not assigned', amount, method, date: today, reference: 'MANUAL' }])
-    setNotice('Fee payment recorded.')
+  const closeRecordForm = () => { setRecordForm(null); setFormValues({}) }
+  const saveRecordForm = event => {
+    event.preventDefault()
+    const {type,id} = recordForm
+    const values = { ...formValues }
+    for (const field of formFields[type]) {
+      const value = String(values[field.key] ?? '').trim()
+      if (field.required && !value) { setNotice(field.label + ' is required.'); return }
+      values[field.key] = value
+    }
+    if (type === 'marks') {
+      const score = Number(values.score), outOf = Number(values.outOf)
+      if (!Number.isFinite(score) || !Number.isFinite(outOf) || score < 0 || outOf <= 0 || score > outOf) { setNotice('Enter a valid score between zero and the total possible marks.'); return }
+      values.score = score; values.outOf = outOf
+    }
+    if (type === 'fees') {
+      const amount = Number(values.amount)
+      if (!Number.isFinite(amount) || amount <= 0) { setNotice('Payment amount must be greater than zero.'); return }
+      values.amount = amount
+    }
+    if (type === 'classes' && values.students !== '') {
+      const count = Number(values.students)
+      if (!Number.isInteger(count) || count < 0) { setNotice('Student count must be a whole number of zero or more.'); return }
+      values.students = String(count)
+    }
+    const configs = {
+      students: [students,setStudents,'STU-'], teachers: [teachers,setTeachers,'TCH-'],
+      classes: [classes,setClasses,'CLS-'], subjects: [subjects,setSubjects,'SUB-'],
+      marks: [marks,setMarks,'MRK-'], fees: [fees,setFees,'FEE-']
+    }
+    const [items,setter,prefix] = configs[type]
+    if (id) setter(items.map(item => item.id === id ? {...item,...values} : item))
+    else {
+      const record = {...values,id:prefix+String(Date.now()).slice(-6)}
+      setter([...items,record])
+    }
+    setNotice(id ? 'Record updated and saved in this browser.' : 'Record added and saved in this browser.')
+    closeRecordForm()
   }
   const markAttendance = (student, status) => {
     const exists = attendance.find(a => a.studentId === student.id && a.date === today)
@@ -149,34 +150,6 @@ function App() {
     const [items, setter] = setters[type]
     setter(items.filter(item => item.id !== id)); setNotice('Record deleted.')
   }
-  const editRecord = (type, id) => {
-    const collections = { students: [students, setStudents], teachers: [teachers, setTeachers], classes: [classes, setClasses], subjects: [subjects, setSubjects], marks: [marks, setMarks], fees: [fees, setFees] }
-    const entry = collections[type]
-    if (!entry) return
-    const [items, setter] = entry
-    const current = items.find(item => item.id === id)
-    if (!current) return
-    const updated = { ...current }
-    for (const key of Object.keys(current).filter(key => key !== 'id')) {
-      const answer = window.prompt('Update ' + key + ' (leave unchanged by pressing Cancel)', String(current[key] ?? ''))
-      if (answer === null) continue
-      const value = answer.trim()
-      if (value === '') { setNotice('An empty value was not saved.'); return }
-      if (['score', 'outOf', 'amount'].includes(key)) {
-        const number = Number(value)
-        if (!Number.isFinite(number) || number < 0 || (key === 'outOf' && number <= 0) || (key === 'amount' && number <= 0)) {
-          setNotice('Enter a valid positive number for ' + key + '.'); return
-        }
-        if (key === 'score' && number > Number(updated.outOf || current.outOf)) {
-          setNotice('Score cannot be greater than the total possible marks.'); return
-        }
-        updated[key] = value
-      } else updated[key] = value
-    }
-    if (type === 'marks' && Number(updated.score) > Number(updated.outOf)) { setNotice('Score cannot exceed total possible marks.'); return }
-    setter(items.map(item => item.id === id ? updated : item))
-    setNotice('Record updated successfully.')
-  }
   const exportCsv = (rows, filename) => {
     if (!rows.length) { setNotice('There are no records to export yet.'); return }
     const keys = Object.keys(rows[0])
@@ -184,9 +157,9 @@ function App() {
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }))
     const link = document.createElement('a'); link.href = url; link.download = filename; link.click(); URL.revokeObjectURL(url)
   }
-  const addButton = { Students: addStudent, Teachers: addTeacher, 'Classes & subjects': addClass, Subjects: addSubject, Marks: addMark, Fees: addFee }
+  const addButton = { Students: () => openRecordForm('students'), Teachers: () => openRecordForm('teachers'), 'Classes & subjects': () => openRecordForm('classes'), Subjects: () => openRecordForm('subjects'), Marks: () => openRecordForm('marks'), Fees: () => openRecordForm('fees') }
   const addLabels = { Students: 'Add student', Teachers: 'Add teacher', 'Classes & subjects': 'Add class', Subjects: 'Add subject', Marks: 'Record marks', Fees: 'Record payment' }
-  const table = (headers, rows, type, empty) => <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left"><thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-400"><tr>{headers.map(h => <th key={h} className="px-5 py-3 font-semibold">{h}</th>)}<th className="px-5 py-3">Action</th></tr></thead><tbody>{rows.map(row => <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/60">{headers.map((h, i) => <td key={h} className="px-5 py-4 text-xs text-slate-600">{row._cells[i]}</td>)}<td className="px-5 py-4"><div className="flex items-center gap-1"><button aria-label="Edit record" onClick={() => editRecord(type, row.id)} className="rounded-lg p-2 text-slate-400 hover:bg-amber-50 hover:text-amber-700"><Pencil size={15}/></button><button aria-label="Delete record" onClick={() => removeRecord(type, row.id)} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={15}/></button></div></td></tr>)}</tbody></table>{rows.length === 0 && <p className="p-9 text-center text-sm text-slate-400">{empty}</p>}</div>
+  const table = (headers, rows, type, empty) => <div className="overflow-x-auto"><table className="w-full min-w-[650px] text-left"><thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-400"><tr>{headers.map(h => <th key={h} className="px-5 py-3 font-semibold">{h}</th>)}<th className="px-5 py-3">Action</th></tr></thead><tbody>{rows.map(row => <tr key={row.id} className="border-t border-slate-100 hover:bg-slate-50/60">{headers.map((h, i) => <td key={h} className="px-5 py-4 text-xs text-slate-600">{row._cells[i]}</td>)}<td className="px-5 py-4"><div className="flex items-center gap-1"><button aria-label="Edit record" onClick={() => openRecordForm(type, row.id)} className="rounded-lg p-2 text-slate-400 hover:bg-amber-50 hover:text-amber-700"><Pencil size={15}/></button><button aria-label="Delete record" onClick={() => removeRecord(type, row.id)} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={15}/></button></div></td></tr>)}</tbody></table>{rows.length === 0 && <p className="p-9 text-center text-sm text-slate-400">{empty}</p>}</div>
   const makeRows = (items, cells) => items.map(item => ({ ...item, _cells: cells(item) }))
   const headerActions = <div className="flex flex-col gap-3 sm:flex-row"><div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2.5"><Search size={15} className="text-slate-400"/><input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search records..." className="w-full bg-transparent text-xs outline-none sm:w-44"/></div>{addButton[active] && <button onClick={addButton[active]} className="inline-flex items-center justify-center gap-2 rounded-xl bg-navy-950 px-4 py-2.5 text-xs font-semibold text-white"><Plus size={15}/>{addLabels[active]}</button>}</div>
   const pageTitle = { Students: 'Student directory', Teachers: 'Teaching staff', 'Classes & subjects': 'Classes & subjects', Subjects: 'Subject catalogue', Attendance: 'Daily attendance', Marks: 'Marks & assessments', 'Report cards': 'Academic report cards', Fees: 'Fees & payments', Reports: 'School reports' }
@@ -216,6 +189,12 @@ function App() {
         : active === 'Report cards' ? <><div className="mb-6"><h2 className="font-display text-2xl font-extrabold text-navy-950">Academic report cards</h2><p className="mt-1 text-sm text-slate-500">Preview a student's academic summary using recorded marks.</p></div><div className="mb-5 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-end"><label className="flex-1 text-xs font-semibold text-slate-600">Select student<select value={reportStudentId} onChange={e=>setReportStudentId(e.target.value)} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-normal text-navy-950"><option value="">Choose a student</option>{students.map(st=><option key={st.id} value={st.id}>{st.name} · {st.className}</option>)}</select></label><button disabled={!reportStudentId} onClick={()=>window.print()} className="rounded-xl bg-navy-950 px-4 py-3 text-xs font-semibold text-white disabled:opacity-40">Print report card</button></div>{reportStudentId ? (()=>{const st=students.find(x=>x.id===reportStudentId);const results=marks.filter(m=>m.student===st?.name);const average=results.length?results.reduce((sum,m)=>sum+(Number(m.score)/Math.max(1,Number(m.outOf)))*100,0)/results.length:0;const grade=grading.find(g=>average>=g.min)||grading[grading.length-1];return <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-white p-6 shadow-soft print:shadow-none"><div className="border-b-2 border-navy-950 pb-5 text-center"><p className="text-[10px] font-bold uppercase tracking-[.25em] text-gold-700">Gency school workspace</p><h3 className="mt-2 font-display text-2xl font-extrabold text-navy-950">STUDENT REPORT CARD</h3><p className="mt-1 text-xs text-slate-500">Academic performance summary · Demo copy</p></div><div className="grid grid-cols-2 gap-4 border-b border-slate-200 py-5 text-xs"><div><span className="text-slate-400">Student</span><p className="mt-1 font-bold text-navy-950">{st.name}</p></div><div><span className="text-slate-400">Admission number</span><p className="mt-1 font-bold text-navy-950">{st.id}</p></div><div><span className="text-slate-400">Class</span><p className="mt-1 font-bold text-navy-950">{st.className}</p></div><div><span className="text-slate-400">Term</span><p className="mt-1 font-bold text-navy-950">{results[0]?.term||'Term 1'}</p></div></div><div className="mt-5 overflow-x-auto"><table className="w-full text-left"><thead className="bg-slate-50 text-[10px] uppercase text-slate-500"><tr><th className="p-3">Subject</th><th className="p-3">Assessment</th><th className="p-3">Score</th><th className="p-3">Percentage</th></tr></thead><tbody>{results.map(m=><tr key={m.id} className="border-b border-slate-100 text-xs"><td className="p-3 font-semibold">{m.subject}</td><td className="p-3">{m.assessment}</td><td className="p-3">{m.score}/{m.outOf}</td><td className="p-3">{(Number(m.score)/Math.max(1,Number(m.outOf))*100).toFixed(1)}%</td></tr>)}</tbody></table>{results.length===0&&<p className="p-6 text-center text-xs text-slate-400">No marks recorded for this student yet.</p>}</div><div className="mt-5 grid grid-cols-2 gap-3"><div className="rounded-xl bg-slate-50 p-4"><p className="text-[10px] text-slate-500">Average</p><strong className="mt-1 block text-2xl text-navy-950">{average.toFixed(1)}%</strong></div><div className="rounded-xl bg-slate-50 p-4"><p className="text-[10px] text-slate-500">Overall grade</p><strong className="mt-1 block text-2xl text-navy-950">{results.length?grade.grade:'—'}</strong><p className="text-[10px] text-slate-500">{results.length?grade.remark:'Awaiting marks'}</p></div></div><div className="mt-10 grid grid-cols-2 gap-8 text-center text-[10px] text-slate-500"><div className="border-t border-slate-300 pt-2">Class teacher signature</div><div className="border-t border-slate-300 pt-2">Head teacher signature</div></div><p className="mt-6 text-center text-[9px] text-slate-400">DEMO REPORT · Confirm official grading policy before use</p></div>})() : <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-400">Choose a student to preview their report card.</div>}</>
         : active === 'Reports' ? <><div className="mb-6"><h2 className="font-display text-2xl font-extrabold text-navy-950">School reports</h2><p className="mt-1 text-sm text-slate-500">Live summaries based on the demo records in this browser.</p></div><div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{[{label:'Student enrolment',value:students.length,detail:'Registered student records',icon:GraduationCap,action:()=>exportCsv(students,'gency-students-report.csv')},{label:'Teaching staff',value:teachers.length,detail:'Teacher profiles',icon:Users,action:()=>exportCsv(teachers,'gency-teachers-report.csv')},{label:'Attendance marked today',value:todayAttendance.length,detail:today,icon:CalendarDays,action:()=>exportCsv(todayAttendance,'gency-attendance-report.csv')},{label:'Present today',value:presentCount,detail:'Attendance register',icon:CheckCircle2,action:()=>exportCsv(todayAttendance,'gency-present-report.csv')},{label:'Fee collections',value:money(totalCollected),detail:fees.length+' payment records',icon:Wallet,action:()=>exportCsv(fees,'gency-fees-report.csv')},{label:'Assessment records',value:marks.length,detail:'Recorded marks',icon:TrendingUp,action:()=>exportCsv(marks,'gency-marks-report.csv')}].map(r=><div key={r.label} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft"><div className="flex items-center justify-between"><span className="text-xs font-medium text-slate-500">{r.label}</span><r.icon size={18} className="text-gold-600"/></div><strong className="mt-4 block break-words font-display text-2xl font-extrabold text-navy-950">{r.value}</strong><p className="mt-1 text-[11px] text-slate-400">{r.detail}</p><button onClick={r.action} className="mt-5 inline-flex items-center gap-2 text-xs font-semibold text-gold-700"><Download size={14}/> Download CSV</button></div>)}</div><div className="mt-5 rounded-xl border border-amber-100 bg-amber-50 p-4 text-xs leading-5 text-amber-900">Report cards with subject grading, aggregates and printable layouts are a separate next development task. These summaries are operational reports, not official academic report cards.</div></>
         : <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center"><AlertCircle className="mx-auto text-gold-600" size={28}/><h2 className="mt-3 font-display text-xl font-bold text-navy-950">{pageTitle[active]}</h2><p className="mt-2 text-sm text-slate-500">Select a module from the navigation.</p></div>}
+        {recordForm && <div className="fixed inset-0 z-[70] flex items-end justify-center bg-navy-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={e=>{if(e.target===e.currentTarget)closeRecordForm()}}>
+          <section role="dialog" aria-modal="true" aria-labelledby="record-form-title" className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl sm:p-7">
+            <div className="mb-6 flex items-start justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[.2em] text-gold-700">Gency records</p><h2 id="record-form-title" className="mt-1 font-display text-xl font-extrabold text-navy-950">{recordForm.id ? 'Edit' : 'Add'} {recordForm.type === 'students' ? 'student' : recordForm.type === 'teachers' ? 'teacher' : recordForm.type === 'classes' ? 'class' : recordForm.type === 'subjects' ? 'subject' : recordForm.type === 'marks' ? 'assessment marks' : 'fee payment'}</h2><p className="mt-1 text-xs text-slate-500">Changes are stored in this browser only.</p></div><button type="button" onClick={closeRecordForm} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100" aria-label="Close form"><X size={18}/></button></div>
+            <form onSubmit={saveRecordForm} className="space-y-4"><div className="grid gap-4 sm:grid-cols-2">{formFields[recordForm.type].map(field=><label key={field.key} className="block text-xs font-semibold text-slate-600">{field.label}{field.required&&<span className="text-rose-500"> *</span>}{field.type==='select'?<select required={field.required} value={formValues[field.key]??''} onChange={e=>setFormValues(v=>({...v,[field.key]:e.target.value}))} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-normal text-navy-950 focus:border-gold-500 focus:outline-none">{field.options.map(option=><option key={option} value={option}>{option}</option>)}</select>:<input required={field.required} type={field.type||'text'} min={field.type==='number'?'0':undefined} step={field.type==='number'?'any':undefined} value={formValues[field.key]??''} onChange={e=>setFormValues(v=>({...v,[field.key]:e.target.value}))} placeholder={field.label} className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-normal text-navy-950 outline-none focus:border-gold-500"/>}</label>)}</div><div className="flex flex-col-reverse gap-2 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end"><button type="button" onClick={closeRecordForm} className="rounded-xl border border-slate-200 px-5 py-3 text-xs font-semibold text-slate-600">Cancel</button><button type="submit" className="rounded-xl bg-navy-950 px-5 py-3 text-xs font-semibold text-white hover:bg-navy-800">{recordForm.id?'Save changes':'Save record'}</button></div></form>
+          </section>
+        </div>}
         <footer className="mt-8 flex flex-col justify-between gap-2 border-t border-slate-200 pt-5 text-[10px] text-slate-400 sm:flex-row"><span>© 2026 Gency Systems · School operations workspace</span><span>Demo data only · Not for real student records</span></footer>
       </div>
     </main>
