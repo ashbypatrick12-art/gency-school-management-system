@@ -122,7 +122,6 @@ function App() {
     const student = window.prompt('Student full name')
     if (!student?.trim()) return
     const subject = window.prompt('Subject') || 'Not specified'
-    const subject = window.prompt('Subject') || 'Not specified'
     const score = window.prompt('Score achieved (number)')
     if (score === null || score.trim() === '' || !Number.isFinite(Number(score)) || Number(score) < 0) { setNotice('Enter a valid score of zero or more.'); return }
     const outOf = window.prompt('Total possible marks', '100')
